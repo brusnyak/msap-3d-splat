@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html class="dark" lang="en"><head>
 <meta charset="utf-8"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
@@ -77,6 +76,35 @@
         .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
         #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 0; }
         canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+
+        /* Modal scroll + tabs */
+        .modal-scroll { max-height: 70vh; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; }
+        .modal-scroll::-webkit-scrollbar { width: 4px; }
+        .modal-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+
+        .tab-btn.active-tab { background: var(--primary); color: var(--on-primary); }
+        .tab-btn:not(.active-tab) { background: transparent; color: var(--on-surface-variant); }
+
+        /* Nav model buttons overflow */
+        #model-nav-items { flex-wrap: wrap; justify-content: center; gap: 8px; }
+        #model-nav-items > .model-btn { position: relative; }
+        .model-btn .remove-btn {
+          position: absolute; top: -6px; right: -6px; width: 18px; height: 18px;
+          border-radius: 9999px; background: #ef4444; color: white; font-size: 12px;
+          display: none; align-items: center; justify-content: center; cursor: pointer;
+          border: 2px solid var(--surface-container); line-height: 1;
+        }
+        .model-btn.custom-model .remove-btn { display: flex; }
+        .model-btn .remove-btn:hover { background: #dc2626; }
+
+        /* Drag-and-drop zone */
+        .drop-zone { border: 2px dashed rgba(255,255,255,0.2); border-radius: 12px; padding: 32px 16px; text-align: center; transition: all 0.2s; cursor: pointer; }
+        .drop-zone.dragover { border-color: var(--primary); background: rgba(255,255,255,0.05); }
+        .drop-zone.has-file { border-color: #22c55e; background: rgba(34,197,94,0.05); }
+
+        /* Shake animation for error feedback */
+        @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-6px)} 40%{transform:translateX(6px)} 60%{transform:translateX(-4px)} 80%{transform:translateX(4px)} }
+        .shake { animation: shake 0.4s ease-in-out; }
     </style>
 </head>
 <body class="bg-background text-on-surface font-body-lg text-body-lg">
@@ -126,28 +154,10 @@
 </aside>
 
 <!-- Bottom Navigation Shell -->
-<nav class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-stack-gap px-4 py-2 w-auto items-center bg-surface-container/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)]">
-<button class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/10 hover:scale-105 transition-all duration-200 ease-out rounded-lg" data-model="0">
-<span class="material-symbols-outlined" data-icon="domain">domain</span>
-<span class="font-label-md text-label-md mt-1 uppercase tracking-tighter">Room</span>
-</button>
-<button class="flex flex-col items-center justify-center bg-primary text-on-primary rounded-lg p-3 scale-105 transition-all duration-200 shadow-xl" data-model="1">
-<span class="material-symbols-outlined" data-icon="person">person</span>
-<span class="font-label-md text-label-md mt-1 uppercase tracking-tighter">Head</span>
-</button>
-<button class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/10 hover:scale-105 transition-all duration-200 ease-out rounded-lg" data-model="2">
-<span class="material-symbols-outlined" data-icon="deployed_code">deployed_code</span>
-<span class="font-label-md text-label-md mt-1 uppercase tracking-tighter">Object</span>
-</button>
-<div class="h-8 w-[1px] bg-white/10 mx-2"></div>
-<button class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/10 hover:scale-105 transition-all duration-200 ease-out rounded-lg" id="btn-reset-camera">
-<span class="material-symbols-outlined" data-icon="restart_alt">restart_alt</span>
-<span class="font-label-md text-label-md mt-1 uppercase tracking-tighter">Reset</span>
-</button>
-<button class="flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/10 hover:scale-105 transition-all duration-200 ease-out rounded-lg" id="btn-rotate">
-<span class="material-symbols-outlined" data-icon="sync">sync</span>
-<span class="font-label-md text-label-md mt-1 uppercase tracking-tighter">Rotate</span>
-</button>
+<nav class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 max-w-[90vw] px-4 py-2 bg-surface-container/80 backdrop-blur-xl rounded-xl border border-white/10 shadow-[0_35px_60px_-15px_rgba(0,0,0,0.3)]">
+<div class="flex items-center gap-1" id="model-nav-items">
+  <!-- Built-in + custom model buttons rendered by JS -->
+</div>
 </nav>
 
 <!-- Footer Signature -->
@@ -198,6 +208,54 @@
 </div>
 </div>
 
+<!-- Add Model Modal -->
+<div class="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] hidden flex items-center justify-center p-4" id="add-model-modal">
+  <div class="bg-surface-container rounded-2xl border border-white/10 shadow-2xl w-full max-w-md">
+    <!-- Modal header -->
+    <div class="flex items-center justify-between px-6 pt-6 pb-3 border-b border-white/10">
+      <h3 class="text-title-lg font-title-lg text-primary">Add 3D Model</h3>
+      <button class="p-1 rounded-full hover:bg-white/10 transition-colors text-on-surface-variant" id="modal-close-btn">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 px-6 pt-4 pb-2">
+      <button class="tab-btn active-tab flex-1 py-2 rounded-lg font-label-md text-label-md transition-all" data-tab="url">From URL</button>
+      <button class="tab-btn flex-1 py-2 rounded-lg font-label-md text-label-md transition-all" data-tab="upload">Upload File</button>
+    </div>
+
+    <!-- Tab: URL -->
+    <div class="px-6 py-4 modal-scroll" id="tab-url">
+      <p class="text-on-surface-variant text-sm mb-3">Paste a direct link to a <code>.splat</code> file hosted online.</p>
+      <input type="url" id="input-url" placeholder="https://example.com/model.splat"
+        class="w-full px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-primary text-sm placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary/50 transition-colors" />
+      <div class="flex gap-2 mt-4">
+        <input type="text" id="input-url-name" placeholder="Model name (optional)"
+          class="flex-1 px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-primary text-sm placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary/50 transition-colors" />
+        <button class="px-6 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md hover:opacity-90 transition-opacity whitespace-nowrap" id="btn-load-url">Load</button>
+      </div>
+      <p id="url-error" class="text-red-400 text-xs mt-2 hidden"></p>
+    </div>
+
+    <!-- Tab: Upload -->
+    <div class="px-6 py-4 modal-scroll" id="tab-upload">
+      <p class="text-on-surface-variant text-sm mb-3">Select a <code>.splat</code> file from your device.</p>
+      <div class="drop-zone" id="drop-zone">
+        <span class="material-symbols-outlined text-4xl text-on-surface-variant mb-2" id="drop-icon">cloud_upload</span>
+        <p class="text-on-surface-variant text-sm" id="drop-text">Drag & drop a .splat file here, or click to browse</p>
+        <input type="file" id="file-input" accept=".splat" class="hidden" />
+      </div>
+      <div class="flex gap-2 mt-4" id="upload-name-row">
+        <input type="text" id="input-upload-name" placeholder="Model name (required for upload)"
+          class="flex-1 px-4 py-3 rounded-xl bg-black/20 border border-white/10 text-primary text-sm placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary/50 transition-colors" />
+        <button class="px-6 py-3 bg-primary text-on-primary rounded-xl font-label-md text-label-md hover:opacity-90 transition-opacity whitespace-nowrap disabled:opacity-30 disabled:cursor-not-allowed" id="btn-load-file" disabled>Load</button>
+      </div>
+      <p id="upload-error" class="text-red-400 text-xs mt-2 hidden"></p>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import * as SPLAT from 'gsplat';
 
@@ -217,33 +275,500 @@ let lastMouseX = 0, lastMouseY = 0;
 let yaw = 0, pitch = 0;
 let lastTime = performance.now();
 
-const models = [
-  { name: 'Room', path: 'models/room.splat' },
-  { name: 'Head', path: 'models/head.splat' },
-  { name: 'Object', path: 'models/object.splat' }
+// ————— Built-in models —————
+const builtInModels = [
+  { name: 'Room', path: 'models/room.splat', icon: 'domain' },
+  { name: 'Head', path: 'models/head.splat', icon: 'person' },
+  { name: 'Object', path: 'models/object.splat', icon: 'deployed_code' }
 ];
 
+// ————— Custom models (URL + File) —————
+// Custom models get IDs starting from 100 + increment
+let nextCustomId = 100;
+const STORAGE_KEY = 'msap3d_custom_models';
+
+function loadCustomModelsFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    // Each item: { id, name, url } — url may be empty for file-uploaded models (only name stored)
+    return parsed.filter(m => m && m.name);
+  } catch { return []; }
+}
+
+function saveCustomModelsToStorage(customModels) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(customModels));
+  } catch {}
+}
+
+// Merge built-in + custom into a flat array for lookups
+function getAllModels() {
+  return [...builtInModels, ...customModels];
+}
+
+let customModels = loadCustomModelsFromStorage();
+
+// ————— Render nav dynamically —————
+function renderNav() {
+  const container = document.getElementById('model-nav-items');
+  const all = getAllModels();
+
+  // Find next available custom id
+  let maxCustomId = 99;
+  customModels.forEach(m => { if (m.id > maxCustomId) maxCustomId = m.id; });
+  nextCustomId = maxCustomId + 1;
+
+  container.innerHTML = '';
+
+  // Separator line
+  const sep = document.createElement('div');
+  sep.className = 'h-8 w-[1px] bg-white/10 mx-1';
+
+  all.forEach((model, idx) => {
+    const isBuiltIn = idx < builtInModels.length;
+    const btn = document.createElement('button');
+    btn.className = 'flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/10 hover:scale-105 transition-all duration-200 ease-out rounded-lg model-btn';
+    if (!isBuiltIn) btn.classList.add('custom-model');
+
+    const icon = document.createElement('span');
+    icon.className = 'material-symbols-outlined';
+    icon.textContent = model.icon || 'view_in_ar';
+    btn.appendChild(icon);
+
+    const label = document.createElement('span');
+    label.className = 'font-label-md text-label-md mt-1 uppercase tracking-tighter';
+    label.textContent = model.name.length > 10 ? model.name.slice(0, 10) + '…' : model.name;
+    btn.appendChild(label);
+
+    // Remove button for custom models
+    if (!isBuiltIn) {
+      const rm = document.createElement('span');
+      rm.className = 'remove-btn material-symbols-outlined';
+      rm.textContent = 'close';
+      rm.style.fontSize = '12px';
+      rm.title = 'Remove model';
+      rm.addEventListener('click', (e) => {
+        e.stopPropagation();
+        removeCustomModel(model.id);
+      });
+      btn.appendChild(rm);
+    }
+
+    btn.addEventListener('click', () => loadModel(idx));
+    container.appendChild(btn);
+  });
+
+  // Add model button
+  const addBtn = document.createElement('button');
+  addBtn.className = 'flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/10 hover:scale-105 transition-all duration-200 ease-out rounded-lg';
+  const addIcon = document.createElement('span');
+  addIcon.className = 'material-symbols-outlined';
+  addIcon.textContent = 'add_circle';
+  addBtn.appendChild(addIcon);
+  const addLabel = document.createElement('span');
+  addLabel.className = 'font-label-md text-label-md mt-1 uppercase tracking-tighter';
+  addLabel.textContent = 'Add';
+  addBtn.appendChild(addLabel);
+  addBtn.addEventListener('click', () => openAddModal());
+
+  // Separator before Add
+  container.appendChild(sep.cloneNode(true));
+
+  // Reset button
+  const resetBtn = document.createElement('button');
+  resetBtn.className = 'flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/10 hover:scale-105 transition-all duration-200 ease-out rounded-lg';
+  resetBtn.id = 'btn-reset-camera';
+  const resetIcon = document.createElement('span');
+  resetIcon.className = 'material-symbols-outlined';
+  resetIcon.textContent = 'restart_alt';
+  resetBtn.appendChild(resetIcon);
+  const resetLabel = document.createElement('span');
+  resetLabel.className = 'font-label-md text-label-md mt-1 uppercase tracking-tighter';
+  resetLabel.textContent = 'Reset';
+  resetBtn.appendChild(resetLabel);
+  resetBtn.addEventListener('click', resetCamera);
+  container.appendChild(resetBtn);
+
+  // Rotate button
+  const rotBtn = document.createElement('button');
+  rotBtn.className = 'flex flex-col items-center justify-center text-on-surface-variant p-3 hover:bg-white/10 hover:scale-105 transition-all duration-200 ease-out rounded-lg';
+  rotBtn.id = 'btn-rotate';
+  const rotIcon = document.createElement('span');
+  rotIcon.className = 'material-symbols-outlined';
+  rotIcon.textContent = 'sync';
+  rotBtn.appendChild(rotIcon);
+  const rotLabel = document.createElement('span');
+  rotLabel.className = 'font-label-md text-label-md mt-1 uppercase tracking-tighter';
+  rotLabel.textContent = 'Rotate';
+  rotBtn.appendChild(rotLabel);
+  rotBtn.addEventListener('click', function() {
+    isAutoRotating = !isAutoRotating;
+    if (isAutoRotating) {
+      this.classList.add('bg-primary', 'text-on-primary');
+      this.classList.remove('text-on-surface-variant');
+    } else {
+      this.classList.remove('bg-primary', 'text-on-primary');
+      this.classList.add('text-on-surface-variant');
+    }
+  });
+  container.appendChild(rotBtn);
+
+  // Add button second (after Reset/Rotate)
+  container.appendChild(addBtn);
+
+  updateNavUI(activeModelIndex);
+}
+
+function removeCustomModel(id) {
+  customModels = customModels.filter(m => m.id !== id);
+  saveCustomModelsToStorage(customModels);
+
+  // If we were viewing this model, switch to first built-in
+  const idx = getAllModels().findIndex(m => m.id === id);
+  if (idx !== -1 && activeModelIndex === idx) {
+    loadedSplats[idx] = undefined;
+    loadModel(0);
+  }
+
+  renderNav();
+}
+
+// ————— Add Model Modal —————
+const modalEl = document.getElementById('add-model-modal');
+const tabUrl = document.getElementById('tab-url');
+const tabUpload = document.getElementById('tab-upload');
+const tabBtns = document.querySelectorAll('.tab-btn');
+const inputUrl = document.getElementById('input-url');
+const inputUrlName = document.getElementById('input-url-name');
+const btnLoadUrl = document.getElementById('btn-load-url');
+const urlError = document.getElementById('url-error');
+const fileInput = document.getElementById('file-input');
+const dropZone = document.getElementById('drop-zone');
+const dropText = document.getElementById('drop-text');
+const dropIcon = document.getElementById('drop-icon');
+const inputUploadName = document.getElementById('input-upload-name');
+const btnLoadFile = document.getElementById('btn-load-file');
+const uploadError = document.getElementById('upload-error');
+
+let selectedFile = null;
+
+function openAddModal() {
+  modalEl.classList.remove('hidden');
+  modalEl.classList.add('flex');
+  // Reset state
+  inputUrl.value = '';
+  inputUrlName.value = '';
+  urlError.classList.add('hidden');
+  selectedFile = null;
+  fileInput.value = '';
+  inputUploadName.value = '';
+  uploadError.classList.add('hidden');
+  btnLoadFile.disabled = true;
+  dropZone.classList.remove('has-file');
+  dropText.textContent = 'Drag & drop a .splat file here, or click to browse';
+  dropIcon.textContent = 'cloud_upload';
+  // Default tab
+  switchTab('url');
+}
+
+function closeModal() {
+  modalEl.classList.add('hidden');
+  modalEl.classList.remove('flex');
+}
+
+function switchTab(tab) {
+  tabBtns.forEach(b => b.classList.toggle('active-tab', b.dataset.tab === tab));
+  tabUrl.classList.toggle('hidden', tab !== 'url');
+  tabUpload.classList.toggle('hidden', tab !== 'upload');
+}
+
+tabBtns.forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+document.getElementById('modal-close-btn').addEventListener('click', closeModal);
+modalEl.addEventListener('click', (e) => { if (e.target === modalEl) closeModal(); });
+
+// URL loading
+btnLoadUrl.addEventListener('click', async () => {
+  const url = inputUrl.value.trim();
+  if (!url) {
+    urlError.textContent = 'Please enter a URL.';
+    urlError.classList.remove('hidden');
+    return;
+  }
+  if (!url.match(/\.splat(\?.*)?$/i) && !url.match(/\.ply(\?.*)?$/i)) {
+    urlError.textContent = 'URL must point to a .splat (or .ply) file.';
+    urlError.classList.remove('hidden');
+    return;
+  }
+
+  const name = inputUrlName.value.trim() || url.split('/').pop().replace(/\.splat/i, '').replace(/\.ply/i, '').replace(/[^a-zA-Z0-9 ]/g, ' ') || 'Custom';
+
+  urlError.classList.add('hidden');
+  closeModal();
+
+  await addCustomModelFromURL(url, name);
+});
+
+// File upload — drop zone
+dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (files.length > 0) handleFileSelect(files[0]);
+});
+
+fileInput.addEventListener('change', () => {
+  if (fileInput.files.length > 0) handleFileSelect(fileInput.files[0]);
+});
+
+function handleFileSelect(file) {
+  const ext = file.name.split('.').pop().toLowerCase();
+  if (ext !== 'splat') {
+    uploadError.textContent = 'Only .splat files are supported.';
+    uploadError.classList.remove('hidden');
+    return;
+  }
+  uploadError.classList.add('hidden');
+  selectedFile = file;
+  dropZone.classList.add('has-file');
+  dropText.textContent = `📄 ${file.name} (${(file.size / 1024 / 1024).toFixed(1)} MB)`;
+  dropIcon.textContent = 'check_circle';
+  btnLoadFile.disabled = false;
+  // Auto-fill name from filename
+  if (!inputUploadName.value.trim()) {
+    const autoName = file.name.replace(/\.splat$/i, '').replace(/[^a-zA-Z0-9 ]/g, ' ').trim();
+    inputUploadName.value = autoName;
+  }
+}
+
+inputUploadName.addEventListener('input', () => {
+  btnLoadFile.disabled = !(selectedFile && inputUploadName.value.trim());
+});
+
+btnLoadFile.addEventListener('click', async () => {
+  const name = inputUploadName.value.trim();
+  if (!name) {
+    uploadError.textContent = 'Please enter a model name.';
+    uploadError.classList.remove('hidden');
+    return;
+  }
+  if (!selectedFile) {
+    uploadError.textContent = 'Please select a file.';
+    uploadError.classList.remove('hidden');
+    return;
+  }
+  uploadError.classList.add('hidden');
+  closeModal();
+  await addCustomModelFromFile(selectedFile, name);
+});
+
+// ————— Add custom model from URL —————
+async function addCustomModelFromURL(url, name) {
+  const id = nextCustomId++;
+  const modelEntry = {
+    id,
+    name: name,
+    url: url,
+    icon: 'public',
+    isFile: false
+  };
+  customModels.push(modelEntry);
+  saveCustomModelsToStorage(customModels);
+
+  const all = getAllModels();
+  const idx = all.length - 1;  // last item
+  renderNav();
+  await loadModel(idx);
+}
+
+// ————— Add custom model from File —————
+async function addCustomModelFromFile(file, name) {
+  const id = nextCustomId++;
+  const modelEntry = {
+    id,
+    name: name,
+    url: '',  // file models have no URL
+    icon: 'upload_file',
+    isFile: true,
+    fileName: file.name
+  };
+  customModels.push(modelEntry);
+  saveCustomModelsToStorage(customModels);
+
+  const all = getAllModels();
+  const idx = all.length - 1;
+  renderNav();
+
+  // Read the file buffer for storage, then load synchronously
+  showLoader();
+  activeModelIndex = idx;
+
+  try {
+    const buffer = await file.arrayBuffer();
+    // Store buffer for later re-loading (e.g., switching back to this model)
+    modelEntry._buffer = buffer;
+
+    scene = new SPLAT.Scene();
+    const newSplat = SPLAT.Loader.LoadFromArrayBuffer(buffer, scene);
+    loadedSplats[idx] = newSplat;
+    activeSplat = newSplat;
+    currentSplatId = idx;
+
+    const count = getPointCount(newSplat);
+    document.getElementById('point-count').textContent =
+      count > 1000000 ? (count / 1000000).toFixed(1) + 'M' :
+      count > 1000 ? (count / 1000).toFixed(1) + 'K' : count;
+
+    const dist = initialDistances[idx] || 2;
+    const center = newSplat.bounds ? newSplat.bounds.center() : new SPLAT.Vector3(0, 0, 0);
+    const size = newSplat.bounds ? newSplat.bounds.size() : new SPLAT.Vector3(1, 1, 1);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const cameraDist = Math.max(maxDim * 1.5, dist);
+    camera.position = new SPLAT.Vector3(center.x, center.y, center.z - cameraDist);
+    yaw = 0;
+    pitch = 0;
+    camera.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(pitch, yaw, 0));
+
+    updateNavUI(idx);
+  } catch (e) {
+    console.error('File load error:', e);
+    document.getElementById('point-count').textContent = 'Error';
+  }
+  hideLoader();
+}
+
+// ————— Load model (supports built-in & custom URL/file) —————
+async function loadModel(index) {
+  if (activeModelIndex === index && currentSplatId === index) return;
+
+  showLoader();
+  activeModelIndex = index;
+
+  const all = getAllModels();
+  const model = all[index];
+
+  if (!model) {
+    hideLoader();
+    return;
+  }
+
+  const isBuiltIn = index < builtInModels.length;
+
+  try {
+    // For built-in: load from path
+    // For URL custom: load from url
+    // For file custom: load from stored buffer (or re-fetch if not available)
+
+    scene = new SPLAT.Scene();
+    let newSplat;
+
+    if (isBuiltIn) {
+      newSplat = await SPLAT.Loader.LoadAsync(model.path, scene, () => {});
+    } else if (model.isFile && model._buffer) {
+      // Load from stored ArrayBuffer
+      newSplat = SPLAT.Loader.LoadFromArrayBuffer(model._buffer, scene);
+    } else if (model.isFile && !model._buffer) {
+      // File model without buffer — skip (can't persist file data across reloads)
+      document.getElementById('point-count').textContent = 'N/A';
+      hideLoader();
+      return;
+    } else {
+      // URL custom
+      newSplat = await SPLAT.Loader.LoadAsync(model.url, scene, () => {});
+    }
+
+    loadedSplats[index] = newSplat;
+    activeSplat = newSplat;
+    currentSplatId = index;
+
+    const count = getPointCount(newSplat);
+    document.getElementById('point-count').textContent =
+      count > 1000000 ? (count / 1000000).toFixed(1) + 'M' :
+      count > 1000 ? (count / 1000).toFixed(1) + 'K' : count;
+
+    const dist = initialDistances[index] || 2;
+    const center = newSplat.bounds ? newSplat.bounds.center() : new SPLAT.Vector3(0, 0, 0);
+    const size = newSplat.bounds ? newSplat.bounds.size() : new SPLAT.Vector3(1, 1, 1);
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const cameraDist = Math.max(maxDim * 1.5, dist);
+    camera.position = new SPLAT.Vector3(center.x, center.y, center.z - cameraDist);
+    yaw = 0;
+    pitch = 0;
+    camera.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(pitch, yaw, 0));
+
+  } catch (e) {
+    console.error('Load error:', e);
+    document.getElementById('point-count').textContent = 'Error';
+  }
+
+  hideLoader();
+  updateNavUI(index);
+}
+
+function getPointCount(splat) {
+  if (!splat) return 0;
+  if (typeof splat.data?.vertexCount === 'number') return splat.data.vertexCount;
+  if (typeof splat.vertexCount === 'number') return splat.vertexCount;
+  if (typeof splat.pointCount === 'number') return splat.pointCount;
+  return 0;
+}
+
+function updateNavUI(index) {
+  const container = document.getElementById('model-nav-items');
+  const buttons = container.querySelectorAll('.model-btn');
+  buttons.forEach((btn, i) => {
+    if (i === index) {
+      btn.classList.add('bg-primary', 'text-on-primary', 'scale-105', 'shadow-xl');
+      btn.classList.remove('text-on-surface-variant');
+    } else {
+      btn.classList.remove('bg-primary', 'text-on-primary', 'scale-105', 'shadow-xl');
+      btn.classList.add('text-on-surface-variant');
+    }
+  });
+}
+
+// ————— Init —————
 async function init() {
   console.log('Initializing gsplat.js viewer...');
-  
+
   const canvas = document.getElementById('three-canvas');
-  
+
   scene = new SPLAT.Scene();
-  
   camera = new SPLAT.Camera();
   camera.fov = 60;
   camera.aspect = window.innerWidth / window.innerHeight;
-  
+
   renderer = new SPLAT.WebGLRenderer(canvas);
   renderer.setSize(window.innerWidth, window.innerHeight);
-  
+
   setupFlyControls(canvas);
   window.addEventListener('resize', onWindowResize);
-  
-  await loadModel(1);
+
+  renderNav();
+
+  // Restore custom model buffers from localStorage on page load? No — file buffers can't be stored.
+  // File-uploaded models only work for the current session if still in memory.
+  // We rebuild the nav but file models will show as disabled or skipped on reload.
+  // Show them but note they need re-upload. We'll prevent loadModel for file models without buffer.
+  // Actually, we can indicate this in the UI: file models will have a note.
+  // For now, just auto-load the first model.
+  await loadModel(0);
   animate();
   setupUI();
-  
+
   console.log('Viewer initialized');
 }
 
@@ -255,7 +780,7 @@ function setupFlyControls(canvas) {
     lastMouseY = y;
     canvas.style.cursor = 'grabbing';
   };
-  
+
   const handleMove = (x, y) => {
     if (!mouseDown) return;
     const dx = x - lastMouseX;
@@ -266,44 +791,34 @@ function setupFlyControls(canvas) {
     lastMouseX = x;
     lastMouseY = y;
   };
-  
+
   const handleEnd = () => {
     mouseDown = false;
     canvas.style.cursor = 'grab';
   };
-  
+
   canvas.addEventListener('mousedown', (e) => {
     if (e.button === 0) handleStart(e.clientX, e.clientY, e);
   });
-  
-  canvas.addEventListener('mousemove', (e) => {
-    handleMove(e.clientX, e.clientY);
-  });
-  
+  canvas.addEventListener('mousemove', (e) => handleMove(e.clientX, e.clientY));
   canvas.addEventListener('mouseup', handleEnd);
   canvas.addEventListener('mouseleave', handleEnd);
-  
+
   canvas.addEventListener('touchstart', (e) => {
-    if (e.touches.length === 1) {
-      handleStart(e.touches[0].clientX, e.touches[0].clientY, e);
-    }
+    if (e.touches.length === 1) handleStart(e.touches[0].clientX, e.touches[0].clientY, e);
   }, { passive: false });
-  
   canvas.addEventListener('touchmove', (e) => {
-    if (e.touches.length === 1) {
-      handleMove(e.touches[0].clientX, e.touches[0].clientY);
-    }
+    if (e.touches.length === 1) handleMove(e.touches[0].clientX, e.touches[0].clientY);
   }, { passive: false });
-  
   canvas.addEventListener('touchend', handleEnd);
-  
+
   canvas.style.cursor = 'grab';
-  
+
   canvas.addEventListener('wheel', (e) => {
     e.preventDefault();
     flySpeed = Math.max(0.01, Math.min(1, flySpeed * (e.deltaY > 0 ? 0.9 : 1.1)));
   }, { passive: false });
-  
+
   window.addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
     const key = e.key.toLowerCase();
@@ -315,7 +830,6 @@ function setupFlyControls(canvas) {
     if (key === 'e') keys.e = true;
     if (key === 'shift') keys.shift = true;
   });
-  
   window.addEventListener('keyup', (e) => {
     const key = e.key.toLowerCase();
     if (key === 'w') keys.w = false;
@@ -326,25 +840,23 @@ function setupFlyControls(canvas) {
     if (key === 'e') keys.e = false;
     if (key === 'shift') keys.shift = false;
   });
-  
-  canvas.style.cursor = 'grab';
 }
 
 function updateFlyCamera(deltaTime) {
   const speed = flySpeed * (deltaTime / 16.667);
   const shiftMultiplier = keys.shift ? 3 : 1;
   const actualSpeed = speed * shiftMultiplier;
-  
+
   const forward = new SPLAT.Vector3(Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), Math.cos(yaw) * Math.cos(pitch));
   const right = new SPLAT.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
-  
+
   if (keys.w) { camera.position.x += forward.x * actualSpeed; camera.position.y += forward.y * actualSpeed; camera.position.z += forward.z * actualSpeed; }
   if (keys.s) { camera.position.x -= forward.x * actualSpeed; camera.position.y -= forward.y * actualSpeed; camera.position.z -= forward.z * actualSpeed; }
   if (keys.a) { camera.position.x -= right.x * actualSpeed; camera.position.z -= right.z * actualSpeed; }
   if (keys.d) { camera.position.x += right.x * actualSpeed; camera.position.z += right.z * actualSpeed; }
   if (keys.q) { camera.position.y -= actualSpeed; }
   if (keys.e) { camera.position.y += actualSpeed; }
-  
+
   const yawQuat = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(0, yaw, 0));
   const pitchQuat = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(pitch, 0, 0));
   camera.rotation = yawQuat.multiply(pitchQuat);
@@ -365,89 +877,20 @@ function hideLoader() {
 
 function updateCoordinateDisplay() {
   if (!camera || !camera.position) return;
-  
   const pos = camera.position;
   const rotY = Math.round(-Math.atan2(pos.x, pos.z) * 180 / Math.PI);
   const rotX = Math.round(-Math.atan2(pos.y, Math.sqrt(pos.x * pos.x + pos.z * pos.z)) * 180 / Math.PI);
-  
   const yEl = document.getElementById('rot-y');
   const xEl = document.getElementById('rot-x');
   if (yEl) yEl.textContent = (rotY >= 0 ? '+' : '') + rotY + '°';
   if (xEl) xEl.textContent = (rotX >= 0 ? '+' : '') + rotX + '°';
 }
 
-let sceneId = 0;
-
-function getPointCount(splat) {
-  if (!splat) return 0;
-  if (typeof splat.data?.vertexCount === 'number') return splat.data.vertexCount;
-  if (typeof splat.vertexCount === 'number') return splat.vertexCount;
-  if (typeof splat.pointCount === 'number') return splat.pointCount;
-  return 0;
-}
-
-async function loadModel(index) {
-  if (activeModelIndex === index && currentSplatId === index) return;
-  
-  showLoader();
-  activeModelIndex = index;
-  
-  try {
-    const model = models[index];
-    
-    scene = new SPLAT.Scene();
-    sceneId++;
-    
-    console.log('Loading model:', model.name, 'from:', model.path);
-    const newSplat = await SPLAT.Loader.LoadAsync(model.path, scene, () => {});
-    loadedSplats[index] = newSplat;
-    
-    currentSplatId = index;
-    activeSplat = newSplat;
-    
-    const count = getPointCount(newSplat);
-    
-    document.getElementById('point-count').textContent = 
-      count > 1000000 ? (count / 1000000).toFixed(1) + 'M' : 
-      count > 1000 ? (count / 1000).toFixed(1) + 'K' : count;
-    
-    const dist = initialDistances[index] || 2;
-    const center = newSplat.bounds ? newSplat.bounds.center() : new SPLAT.Vector3(0, 0, 0);
-    const size = newSplat.bounds ? newSplat.bounds.size() : new SPLAT.Vector3(1, 1, 1);
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const cameraDist = Math.max(maxDim * 1.5, dist);
-    camera.position = new SPLAT.Vector3(center.x, center.y, center.z - cameraDist);
-    yaw = 0;
-    pitch = 0;
-    camera.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(pitch, yaw, 0));
-    
-    console.log('Loaded:', model.name);
-    
-  } catch (e) {
-    console.error('Load error:', e);
-    document.getElementById('point-count').textContent = 'Error';
-  }
-  
-  hideLoader();
-  updateNavUI(index);
-}
-
-function updateNavUI(index) {
-  const buttons = document.querySelectorAll('nav button[data-model]');
-  buttons.forEach((btn, i) => {
-    if (i === index) {
-      btn.classList.add('bg-primary', 'text-on-primary', 'scale-105', 'shadow-xl');
-      btn.classList.remove('text-on-surface-variant');
-    } else {
-      btn.classList.remove('bg-primary', 'text-on-primary', 'scale-105', 'shadow-xl');
-      btn.classList.add('text-on-surface-variant');
-    }
-  });
-}
-
 function resetCamera() {
-  if (!camera || !loadedSplats[activeModelIndex]) return;
+  if (!camera) return;
+  const all = getAllModels();
   const splat = loadedSplats[activeModelIndex];
+  if (!splat) return;
   const center = splat.bounds ? splat.bounds.center() : new SPLAT.Vector3(0, 0, 0);
   const size = splat.bounds ? splat.bounds.size() : new SPLAT.Vector3(1, 1, 1);
   const maxDim = Math.max(size.x, size.y, size.z);
@@ -465,26 +908,24 @@ function resetCamera() {
   }
 }
 
-function centerView() {
-  resetCamera();
-}
-
+function centerView() { resetCamera(); }
 function zoomIn() {
-  if (!camera || !loadedSplats[activeModelIndex]) return;
+  if (!camera) return;
+  const splat = loadedSplats[activeModelIndex];
+  if (!splat) return;
   const pos = camera.position;
-  const target = loadedSplats[activeModelIndex].bounds?.center() || new SPLAT.Vector3(0, 0, 0);
+  const target = splat.bounds?.center() || new SPLAT.Vector3(0, 0, 0);
   const dir = pos.subtract(target);
-  const newPos = target.add(dir.multiply(0.7));
-  camera.position = newPos;
+  camera.position = target.add(dir.multiply(0.7));
 }
-
 function zoomOut() {
-  if (!camera || !loadedSplats[activeModelIndex]) return;
+  if (!camera) return;
+  const splat = loadedSplats[activeModelIndex];
+  if (!splat) return;
   const pos = camera.position;
-  const target = loadedSplats[activeModelIndex].bounds?.center() || new SPLAT.Vector3(0, 0, 0);
+  const target = splat.bounds?.center() || new SPLAT.Vector3(0, 0, 0);
   const dir = pos.subtract(target);
-  const newPos = target.add(dir.multiply(1.4));
-  camera.position = newPos;
+  camera.position = target.add(dir.multiply(1.4));
 }
 
 function toggleTheme() {
@@ -498,9 +939,7 @@ function toggleTheme() {
     html.classList.add('light');
   }
   const icon = document.getElementById('theme-icon');
-  if (icon) {
-    icon.textContent = isDark ? 'light_mode' : 'dark_mode';
-  }
+  if (icon) icon.textContent = isDark ? 'light_mode' : 'dark_mode';
   document.body.style.backgroundColor = isDark ? '#121414' : '#f8f8f8';
 }
 
@@ -509,10 +948,9 @@ function animate() {
     const now = performance.now();
     const deltaTime = now - lastTime;
     lastTime = now;
-    
     requestAnimationFrame(loop);
     updateFlyCamera(deltaTime);
-    
+
     if (isAutoRotating && camera && activeSplat) {
       const time = Date.now() * 0.001;
       const center = activeSplat.bounds?.center() || new SPLAT.Vector3(0, 0, 0);
@@ -526,7 +964,7 @@ function animate() {
       pitch = Math.sin(time * 0.3) * 0.3;
       camera.rotation = SPLAT.Quaternion.FromEuler(new SPLAT.Vector3(pitch, yaw, 0));
     }
-    
+
     renderer.render(scene, camera);
     updateCoordinateDisplay();
   }
@@ -552,48 +990,29 @@ function showInfoModal() {
         <p class="text-xs text-on-surface-variant">Built with gsplat.js</p>
         <p class="text-xs text-on-surface-variant">Format: .splat (Gaussian Splatting)</p>
       </div>
-      <button class="mt-4 w-full py-2 bg-primary text-on-primary rounded-lg hover:opacity-90" id="modal-close">Close</button>
+      <button class="mt-4 w-full py-2 bg-primary text-on-primary rounded-lg hover:opacity-90" id="modal-close-info">Close</button>
     </div>
   `;
   document.body.appendChild(modal);
-  
-  document.getElementById('modal-close').addEventListener('click', () => {
+  document.getElementById('modal-close-info').addEventListener('click', () => {
     document.body.removeChild(modal);
   });
-  
   modal.addEventListener('click', (e) => {
     if (e.target === modal) document.body.removeChild(modal);
   });
 }
 
 function setupUI() {
-  // Model selection
-  document.querySelectorAll('nav button[data-model]').forEach((btn, index) => {
-    btn.addEventListener('click', () => loadModel(index));
-  });
-  
-  // Reset camera
-  document.getElementById('btn-reset-camera').addEventListener('click', resetCamera);
-  
-  // Rotate toggle
-  document.getElementById('btn-rotate').addEventListener('click', function() {
-    isAutoRotating = !isAutoRotating;
-    if (isAutoRotating) {
-      this.classList.add('bg-primary', 'text-on-primary');
-      this.classList.remove('text-on-surface-variant');
-    } else {
-      this.classList.remove('bg-primary', 'text-on-primary');
-      this.classList.add('text-on-surface-variant');
-    }
-  });
-  
+  // Theme toggle
+  document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
+
   // Zoom controls
   document.getElementById('btn-zoom-in').addEventListener('click', zoomIn);
   document.getElementById('btn-zoom-out').addEventListener('click', zoomOut);
-  
+
   // Reset view
   document.getElementById('btn-reset-view').addEventListener('click', centerView);
-  
+
   // Fullscreen
   document.getElementById('btn-fullscreen').addEventListener('click', () => {
     if (!document.fullscreenElement) {
@@ -602,10 +1021,7 @@ function setupUI() {
       document.exitFullscreen();
     }
   });
-  
-  // Theme toggle
-  document.getElementById('theme-toggle').addEventListener('click', toggleTheme);
-  
+
   // Info button
   document.getElementById('btn-info').addEventListener('click', showInfoModal);
 }

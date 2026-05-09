@@ -1,0 +1,54 @@
+# Task and assignment files
+task-email.md
+task-email2.md
+pdf_task.md
+*.pdf
+
+# Raw source datasets (videos, zips, photos)
+*.zip
+*.mp4
+*.mov
+*.avi
+
+# Raw root ply files (only keep copies in models/)
+# GLB files - only use PLY
+*.glb
+
+# Screenshots and temp images
+Screenshot*.png
+
+# B-MSAP-WEB portal clone (teacher's repo)
+B-MSAP-WEB/
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Derived mesh assets for optional Mesh view
+!models_mesh/
+!models_mesh/*.glb
+
+# PLY and SPZ model files
+*.ply
+*.spz

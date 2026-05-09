@@ -1,0 +1,13 @@
+Názov diela: 3D Gaussian Splat Viewer - Interaktívny 3D model prehliadač
+Autor: Yehor Brusnyak
+Rok: 2026
+Vybraná licencia: Creative Commons Attribution 4.0 International (CC BY 4.0)
+Odkaz na licenciu: https://creativecommons.org/licenses/by/4.0/
+
+Vyhlásenie:
+Toto dielo je sprístupnené pod licenciou Creative Commons 4.0 International.
+
+---
+
+This work is licensed under the Creative Commons Attribution 4.0 International License.
+To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/ or send a letter to Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.

@@ -47,16 +47,19 @@ Tento projekt je vyhotovený v rámci predmetu B-MSAP na STU FEI a pozostáva z 
 ```
 ├── index.html              # Hlavná aplikácia (Splat Viewer)
 ├── thumbnail.png           # 1000x1000 náhľad (Povinný rozmer)
-├── models/                 # 3D Gaussian Splat modely
-│   ├── room.splat         # Miestnosť (Miestnosť na meeting / Hallway)
+├── models/                 # 3D Gaussian Splat modely (.splat)
+│   ├── room.splat         # Miestnosť (Meeting room / Hallway)
 │   ├── head.splat         # Hlava/Postava (Študent)
 │   └── object.splat       # Predmet (Inventár fakulty)
-├── models_mesh/            # Odvodené mesh modely (GLB)
-│   ├── room.glb
-│   ├── head.glb
-│   └── object.glb
+├── dataset/                # Tréningová dataset sekvencia
+│   ├── head/              # ~220 frames (head scan)
+│   ├── object/            # ~210 frames (object scan)
+│   └── room/              # ~300 frames (room scan)
+├── materials/              # Odvodené materiály
 ├── README.md              # Dokumentácia
-└── .gitignore            # Git ignore file
+├── TODO.md                # Plánovač úloh
+├── LICENSE                # Creative Commons 4.0
+└── .gitignore             # Git ignore file
 ```
 
 ## 🎯 Použitie
@@ -81,7 +84,7 @@ Tento projekt je vyhotovený v rámci predmetu B-MSAP na STU FEI a pozostáva z 
 - **Point Cloud**: 1.2M+ points per model
 - **VRAM Usage**: ~248 MB
 - **Resolution**: High-quality rendering
-- **Format**: PLY (source, assignment-native) + GLB (derived mesh view)
+- **Format**: .splat (preview-ready) + .ply/.spz (source, assignment-native, large — not tracked in git)
 
 ## 🎨 Design System
 
@@ -108,4 +111,4 @@ Tento dielo je sprístupnené pod licenciou **Creative Commons 4.0 International
 
 ---
 
-**Späť na portál**: [B-MSAP Web Portal](/)
+**Späť na portál**: [B-MSAP Web Portal](https://brusnyak.github.io/B-MSAP-WEB/)
